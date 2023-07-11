@@ -87,6 +87,21 @@ func ReadHeader(reader *bufio.Reader) (*Header, error) {
 	return nil, ErrNoProxyProtocol
 }
 
+// Format format header to bytes.
+func (h *Header) Format() ([]byte, error) {
+	return formatHeader(h, false)
+}
+
+// FormatWithChecksum formater header to bytes, and append checksum with CRC-32c.
+func (h *Header) FormatWithChecksum() ([]byte, error) {
+	return formatHeader(h, true)
+}
+
+// WriteTo implements io.WriteTo
+func (h *Header) WriteTo(w io.Writer) (int, error) {
+	return w.Write(h.Raw)
+}
+
 func (h *Header) ZapFields() []zap.Field {
 	var srcAddr, dstAddr string
 	if h.SrcAddr != nil {

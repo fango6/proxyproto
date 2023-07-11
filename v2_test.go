@@ -133,8 +133,7 @@ func Test_readAndParseV2(t *testing.T) {
 		})
 
 		var namePrefix = filepath.Join(dir, "sock")
-		var nameSuffix = make([]byte, addressLengthUnix/2-len(namePrefix))
-		var name = namePrefix + string(nameSuffix)
+		var name = formatUnixName(namePrefix)
 		var raw = "\r\n\r\n\x00\r\nQUIT\n" + // version signature
 			"\x21\x31\x00\xD8" + // version 2, proxy, tcp, 216
 			name + name

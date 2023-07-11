@@ -67,6 +67,41 @@ func parseTLVs(rawTLVs []byte) (TLVs, error) {
 	return tlvs, nil
 }
 
+func NewTLV(t PP2Type, val []byte) TLV {
+	return TLV{
+		Type:   t,
+		Length: uint16(len(val)),
+		Value:  val,
+	}
+}
+
+// NewNoOpTLV create a PP2_TYPE_NOOP TLV group.
+func NewNoOpTLV(length uint16) TLV {
+	return TLV{
+		Type:   PP2_TYPE_NOOP,
+		Length: length,
+		Value:  make([]byte, length),
+	}
+}
+
+// Format format to raw bytes for PROXY sender.
+func (tlv TLV) Format() []byte {
+	l := len(tlv.Value)
+	// not values
+	if l == 0 {
+		// no-op
+		if tlv.Type == PP2_TYPE_NOOP && tlv.Length > 0 {
+			return make([]byte, tlv.Length)
+		}
+		return nil
+	}
+
+	var buf = make([]byte, 0, l)
+	buf = append(buf, byte(tlv.Type), byte(l>>8), byte(l))
+	buf = append(buf, tlv.Value...)
+	return buf
+}
+
 // IsRegistered true if type have already been registered
 func (tlv TLV) IsRegistered() bool {
 	switch tlv.Type {

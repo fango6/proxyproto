@@ -78,3 +78,11 @@ func ChecksumCRC32c(h *Header) bool {
 	// the checksum is not provided as part of the PROXY header.
 	return true
 }
+
+// CalcCRC32cChecksum calculate a CRC32c checksum value of the whole PROXY header.
+func CalcCRC32cChecksum(raw []byte) []byte {
+	checksum := crc32.Checksum(raw, crc32cTab)
+	var buf = make([]byte, 4)
+	binary.BigEndian.PutUint32(buf, checksum)
+	return buf
+}

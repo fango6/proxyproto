@@ -61,6 +61,62 @@ func validatePort(port int) error {
 	return nil
 }
 
+// guessAndParseAddrs guess the addresses what are type, and parse them.
+func guessAndParseAddrs(srcAddr, dstAddr net.Addr) (*bytes.Buffer, uint16, AddressFamily, TransportProtocol) {
+	var srcIP, dstIP net.IP
+	var srcPort, dstPort int
+	var tp TransportProtocol
+
+	switch srcType := srcAddr.(type) {
+	case *net.TCPAddr:
+		dstType, ok := dstAddr.(*net.TCPAddr)
+		if !ok {
+			return nil, 0, 0, 0
+		}
+		srcIP, dstIP, srcPort, dstPort = srcType.IP, dstType.IP, srcType.Port, dstType.Port
+		tp = SOCK_STREAM
+
+	case *net.UDPAddr:
+		dstType, ok := dstAddr.(*net.UDPAddr)
+		if !ok {
+			return nil, 0, 0, 0
+		}
+		srcIP, dstIP, srcPort, dstPort = srcType.IP, dstType.IP, srcType.Port, dstType.Port
+		tp = SOCK_DGRAM
+
+	case *net.UnixAddr:
+		dstType, ok := dstAddr.(*net.UnixAddr)
+		if !ok {
+			return nil, 0, 0, 0
+		}
+		if srcType.Net == "unix" {
+			tp = SOCK_STREAM
+		} else if srcType.Net == "unixgram" {
+			tp = SOCK_DGRAM
+		}
+		var payloadBuf = bytes.NewBuffer([]byte(formatUnixName(srcType.Name) + formatUnixName(dstType.Name)))
+		return payloadBuf, addressLengthUnix, AF_UNIX, tp
+	}
+
+	if len(srcIP) == 0 || len(dstIP) == 0 || validatePort(srcPort) != nil || validatePort(dstPort) != nil {
+		return nil, 0, 0, 0
+	}
+
+	var payloadBuf = &bytes.Buffer{}
+	if len(srcIP.To4()) == net.IPv4len && len(dstIP.To4()) == net.IPv4len {
+		payloadBuf.Write(srcIP.To4())
+		payloadBuf.Write(dstIP.To4())
+		payloadBuf.Write([]byte{byte(srcPort >> 8), byte(srcPort), byte(dstPort >> 8), byte(dstPort)})
+		return payloadBuf, addressLengthIPv4, AF_INET, tp
+	} else if len(srcIP.To16()) == net.IPv6len && len(dstIP.To16()) == net.IPv6len {
+		payloadBuf.Write(srcIP.To16())
+		payloadBuf.Write(dstIP.To16())
+		payloadBuf.Write([]byte{byte(srcPort >> 8), byte(srcPort), byte(dstPort >> 8), byte(dstPort)})
+		return payloadBuf, addressLengthIPv6, AF_INET6, tp
+	}
+	return nil, 0, 0, 0
+}
+
 func validatePayloadLength(length uint16, af AddressFamily) error {
 	switch af {
 	case AF_INET:
@@ -85,4 +141,14 @@ func parseUnixName(name []byte) string {
 		return string(name)
 	}
 	return string(name[:i])
+}
+
+func formatUnixName(name string) string {
+	half := addressLengthUnix / 2
+	if len(name) >= half {
+		return name[:half]
+	}
+
+	filler := make([]byte, half-len(name))
+	return name + string(filler)
 }
