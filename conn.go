@@ -87,6 +87,37 @@ func (c *Conn) TLVs() TLVs {
 	return c.Header.TLVs
 }
 
+// GetVpceID find VPC endpoint ID in the PROXY header's TLVs.
+// an unregistered PP2Type will be choosen, and the first byte discarded.
+func (c *Conn) GetVpceID() string {
+	if c.Header == nil || len(c.Header.TLVs) == 0 {
+		return ""
+	}
+	for _, tlv := range c.Header.TLVs {
+		if !tlv.IsRegistered() {
+			return string(tlv.Value[1:])
+		}
+	}
+	return ""
+}
+
+// GetVpceIDWithType gets VPC endpoint ID with PP2Type from PROXY header.
+// the subtype of 0 returns all values, otherwise the first byte is discarded.
+func (c *Conn) GetVpceIDWithType(typ PP2Type, subType PP2Type) string {
+	if c.Header == nil || len(c.Header.TLVs) == 0 {
+		return ""
+	}
+	for _, tlv := range c.Header.TLVs {
+		if tlv.Type == typ {
+			if subType == 0 {
+				return string(tlv.Value)
+			}
+			return string(tlv.Value[1:])
+		}
+	}
+	return ""
+}
+
 // RawHeader get raw header
 func (c *Conn) RawHeader() []byte {
 	if c.Header == nil {
